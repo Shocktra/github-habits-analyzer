@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import SearchBar from './components/SearchBar';
 import ProfileCard from './components/ProfileCard';
 import LanguageChart from './components/LanguageChart';
@@ -11,24 +11,29 @@ function App() {
   const [langData, setLangData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const requestId = useRef(0);
 
   const handleSearch = async (username) => {
+    // Hızlı art arda aramalarda yalnızca son isteğin sonucu gösterilir.
+    const id = ++requestId.current;
     setIsLoading(true);
     setError(null);
     setUser(null);
     setLangData(null);
 
     try {
-      const userData = await fetchUserData(username);
+      const [userData, repos] = await Promise.all([
+        fetchUserData(username),
+        fetchUserRepos(username),
+      ]);
+      if (id !== requestId.current) return;
       setUser(userData);
-      
-      const repos = await fetchUserRepos(username);
-      const analyzedLangs = analyzeLanguages(repos);
-      setLangData(analyzedLangs);
+      setLangData(analyzeLanguages(repos));
     } catch (err) {
+      if (id !== requestId.current) return;
       setError(err.message);
     } finally {
-      setIsLoading(false);
+      if (id === requestId.current) setIsLoading(false);
     }
   };
 
